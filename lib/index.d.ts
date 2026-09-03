@@ -7,4 +7,6 @@
  * @module dsh-plugin-wallpapers
  */
 export * from './host/index.ts';
+export { applySettings, WallpaperSettingsSchema } from './host/settings.ts';
+export { parseSelection, WALLPAPER_SETTINGS_NAMESPACE } from './wallpaper-settings.ts';
 export { Wallpapers as default } from './host/index.ts';

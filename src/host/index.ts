@@ -25,6 +25,7 @@ import {
   scanCollection, wallpaperKind, WALLPAPER_ENGINE_APP_ID,
 } from './discovery.ts'
 import { serveFileWithRanges } from './file-stream.ts'
+import { applySettings } from './settings.ts'
 import type { WallpaperProperty, WallpaperRoster, WallpaperSummary } from './types.ts'
 
 export type * from './types.ts'
@@ -124,6 +125,10 @@ export class Wallpapers extends Service {
 
   constructor(ctx: Context, public config: Config) {
     super(ctx, 'wallpapers')
+    // Register the durable `ui-wallpaper` settings section (selection + mute)
+    // the browser scope binds against; dsh's own background changes, never the
+    // Windows desktop wallpaper.
+    applySettings(ctx)
     this.registerRoutes()
     this.registerRosterChannel()
   }
