@@ -1,0 +1,4 @@
+node_modules/
+*.tsbuildinfo
+*.log
+install.ps1.bak

@@ -1,0 +1,52 @@
+/** `ui-wallpaper` namespace dictionaries (the picker row and dialog's copy). */
+
+/** Simplified Chinese dictionary (the key-set source of truth). */
+export const zh = {
+  'wallpaper.row.title': '壁纸',
+  'wallpaper.row.description': '用 Wallpaper Engine 的壁纸装点 dsh 的背景（不会改变桌面壁纸）',
+  'wallpaper.row.current': '当前壁纸',
+  'wallpaper.row.none': '未选择',
+  'wallpaper.row.choose': '选择壁纸',
+  'wallpaper.row.clear': '清除',
+  'wallpaper.dialog.title': '选择壁纸',
+  'wallpaper.dialog.close': '关闭',
+  'wallpaper.dialog.search': '搜索壁纸…',
+  'wallpaper.dialog.all': '全部',
+  'wallpaper.dialog.video': '视频',
+  'wallpaper.dialog.web': '网页',
+  'wallpaper.dialog.unsupported': '不支持',
+  'wallpaper.dialog.empty': '没有找到壁纸',
+  'wallpaper.dialog.noInstall': '未找到 Wallpaper Engine 安装。请确认 Steam 库位置已正确配置。',
+  'wallpaper.dialog.loadError': '读取壁纸列表失败',
+  'wallpaper.dialog.retry': '重试',
+  'wallpaper.dialog.audio': '播放声音',
+  'wallpaper.dialog.collection.workshop': '创意工坊',
+  'wallpaper.dialog.collection.bundled': '内置',
+} satisfies Record<string, string>
+
+/** The ui-wallpaper namespace key union. */
+export type WallpaperKey = keyof typeof zh
+
+/** English dictionary, checked complete against the zh key set. */
+export const en = {
+  'wallpaper.row.title': 'Wallpaper',
+  'wallpaper.row.description': 'Dress dsh\'s own background with Wallpaper Engine wallpapers (the desktop wallpaper is untouched)',
+  'wallpaper.row.current': 'Current wallpaper',
+  'wallpaper.row.none': 'None',
+  'wallpaper.row.choose': 'Choose wallpaper',
+  'wallpaper.row.clear': 'Clear',
+  'wallpaper.dialog.title': 'Choose a wallpaper',
+  'wallpaper.dialog.close': 'Close',
+  'wallpaper.dialog.search': 'Search wallpapers…',
+  'wallpaper.dialog.all': 'All',
+  'wallpaper.dialog.video': 'Video',
+  'wallpaper.dialog.web': 'Web',
+  'wallpaper.dialog.unsupported': 'Unsupported',
+  'wallpaper.dialog.empty': 'No wallpapers found',
+  'wallpaper.dialog.noInstall': 'No Wallpaper Engine installation found. Check that the configured Steam library locations are correct.',
+  'wallpaper.dialog.loadError': 'Failed to load the wallpaper list',
+  'wallpaper.dialog.retry': 'Retry',
+  'wallpaper.dialog.audio': 'Play sound',
+  'wallpaper.dialog.collection.workshop': 'Workshop',
+  'wallpaper.dialog.collection.bundled': 'Bundled',
+} satisfies Record<WallpaperKey, string>

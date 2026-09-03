@@ -1,0 +1,211 @@
+/* Widens the Modal card itself: Modal caps its own .dialog at min(380px,100%),
+   which squeezed the picker into a single narrow column. The doubled class
+   out-specifies Modal's .dialog regardless of stylesheet order (same trick as
+   DirectoryBrowser). Flat rule: the stylesheet-contract scans flatten CSS with
+   a nesting-unaware parser, so keep this sheet free of nesting blocks. */
+.pickerDialog.pickerDialog {
+  width: min(720px, 100%);
+}
+
+/* Wallpaper picker dialog content: toolbar + scrollable card grid. */
+.content {
+  height: min(560px, calc(100dvh - 96px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  /* The Modal card is a fixed-height flex column; without a floor on this
+     region the card grows past the viewport and the grid's `overflow-y` has
+     nothing to clip against (the whole card overflows, nothing scrolls). */
+  min-height: 0;
+  /* Elevated surface (the Modal's menu rung): the scrollbar thumb takes the
+     l2 elevation tokens. Declared here rather than on `.grid` because the
+     elevation is a property of this surface, and the custom properties
+     inherit down to whichever descendant actually scrolls (see ui-theme
+     styles/scrollbar.css for the rebinding contract). */
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
+/* Modal's own `.body` sits between this region and the grid with
+   `min-height: auto`, so it grows to the grid's full height and pushes
+   everything past the card's clip — the same (0,1,0)-specificity race the
+   doubled class wins in DirectoryBrowser. Nothing else declares `min-height`
+   on that element, so this plain rule wins regardless of stylesheet order;
+   with the floor in place the body shrinks to the leftover row and the grid
+   becomes the scroll region. Kept out of `.content` as a nesting block: the
+   stylesheet-contract scans (ui-theme tests/stylesheet-scan.ts) flatten CSS
+   with a nesting-unaware parser. */
+.content > :global(*) {
+  min-height: 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  /* Fixed-height rows keep the grid's `flex: 1 1 auto` meaningful: a
+     shrinkable toolbar would absorb the height the grid needs to clip. */
+  flex: none;
+}
+
+.search {
+  flex: 1 1 auto;
+  box-sizing: border-box;
+  padding: 6px 12px;
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-layer-1);
+  font: inherit;
+  font-size: 13px;
+  color: var(--dsw-alias-label-primary);
+  outline: none;
+}
+
+.search:focus {
+  border-color: var(--dsw-alias-border-l4);
+}
+
+.kinds {
+  display: flex;
+  gap: 4px;
+}
+
+.kind {
+  padding: 4px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+
+.kind:hover {
+  color: var(--dsw-alias-label-primary);
+}
+
+.kindSelected {
+  background: var(--dsw-alias-bg-layer-2);
+  color: var(--dsw-alias-label-primary);
+}
+
+.gridWrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 12px;
+  background: transparent;
+  font: inherit;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+}
+
+.card:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.cardSelected {
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.cardUnsupported {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.thumb {
+  display: block;
+  flex: none;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.thumbImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbFallback {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px 10px;
+}
+
+.name {
+  font-size: 13px;
+  line-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--dsw-alias-brand-primary);
+  font-size: 11px;
+  line-height: 14px;
+  color: #fff;
+}
+
+.note {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.noteError {
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.audio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--dsw-alias-label-primary);
+}

@@ -1,0 +1,13 @@
+# Bundle self-activation patch: when this package is installed into a profile
+# via `dsh plugin --profile web add dsh-plugin-wallpapers` (or a local checkout
+# / git URL), this patch mounts the plugin's node half — the Wallpaper Engine
+# discovery service, the `/wallpapers` media routes, and the `/wallpapers-roster`
+# RPC channel. The browser half (Settings → General → 壁纸 picker row and
+# dialog) is discovered automatically from the `dsh.client` declaration in
+# package.json.
+#
+# dsh's Web UI background is what changes; the Windows desktop wallpaper is
+# never touched.
+- insert:
+    - id: ui-wallpaper
+      name: dsh-plugin-wallpapers
