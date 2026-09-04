@@ -4,6 +4,8 @@
 
 把已安装的任意 **Wallpaper Engine** 壁纸用作 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web 界面的背景。零配置 Steam 检测、支持 Range 的视频流式播放、设置 → 通用 里的选择对话框。**改变的只是 dsh 自己的界面背景 —— 不会碰 Windows 桌面壁纸。**
 
+https://github.com/user-attachments/assets/00000000-0000-0000-0000-000000000000
+
 ## 功能
 
 - **一键选用** — 设置 → 通用 → **壁纸** → 选择：所有创意工坊与内置壁纸带实时预览缩略图、标题、类型列出。当前选中项有标记；再点一次即清除。

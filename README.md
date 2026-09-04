@@ -4,6 +4,8 @@ English | [中文](README.zh.md)
 
 Use any installed **Wallpaper Engine** wallpaper as the background of the [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) Web UI. Zero-config Steam detection, range-enabled video streaming, and a picker dialog in Settings → General. **dsh's own background is what changes — the Windows desktop wallpaper is never touched.**
 
+https://github.com/user-attachments/assets/00000000-0000-0000-0000-000000000000
+
 ## Features
 
 - **One-click pick** — Settings → General → **Wallpaper** → Choose: every Workshop and bundled wallpaper appears with its live preview thumbnail, title, and kind. The current pick is marked; clicking it again clears it.
