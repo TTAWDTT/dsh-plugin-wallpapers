@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { Writable } from 'node:stream'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -411,5 +411,189 @@ describe('Wallpapers service', () => {
       appId: '431960',
       bundledProjectsSubPath: 'projects/defaultprojects',
     })
+  })
+})
+
+describe('wallpapers media routes (traversal rejection)', () => {
+  /** The status a media request landed on, via a minimal response double. */
+  interface Served {
+    status: number
+    body: string
+    done: Promise<void>
+  }
+
+  /**
+   * Fire one raw (still-encoded) URL path at the registered `/wallpapers`
+   * prefix route and collect the status — the same bytes a curl request
+   * carries, so WHATWG normalization inside the handler sees exactly what a
+   * real client sends.
+   */
+  async function serve(
+    wallpapers: Wallpapers, rawPath: string, method = 'GET', headers: Record<string, string> = {},
+  ): Promise<Served> {
+    // A fresh plugin instance registers its route against this capturing
+    // fake; the real service's registration (against the composition's
+    // webServer) is untouched. The instance's config matches the caller's so
+    // the install resolution lands on the same roots.
+    let handler: ((req: unknown, res: unknown) => void) | undefined
+    const ctx = new Context()
+    contexts.push(ctx)
+    ctx.provide('webServer', {
+      register: (route: { handler: (req: unknown, res: unknown) => void }) => {
+        handler = route.handler
+        return () => {}
+      },
+    } as never)
+    await ctx.plugin(Wallpapers, {
+      steamLibraryRoots: wallpapers.config.steamLibraryRoots,
+      appId: wallpapers.config.appId,
+      bundledProjectsSubPath: wallpapers.config.bundledProjectsSubPath,
+    }).await()
+    expect(handler).toBeTypeOf('function')
+    let status = 0
+    let body = ''
+    let release: () => void = () => {}
+    const done = new Promise<void>((resolve) => { release = resolve })
+    // A real Writable so `stream.pipe(res)` inside serveFileWithRanges works;
+    // writeHead/end are captured on top of it.
+    const res = Object.assign(new Writable({
+      write(chunk, _encoding, callback) { body += String(chunk); callback() },
+    }), {
+      writeHead(code: number, _headers?: Record<string, unknown>) { status = code; return res },
+      end(chunk?: string) {
+        if (chunk !== undefined) body += chunk
+        if (status === 0) status = 200
+        release()
+      },
+      destroy() { release() },
+    }) as unknown as ServerResponse
+    // Resolve the roots the same way the service under test did, then drive
+    // the handler through the same decode-and-serve path a real request takes.
+    await (ctx.get('wallpapers') as Wallpapers).list()
+    handler!(
+      { url: rawPath, headers, method },
+      res,
+    )
+    // Streamed 200s release on socket end, which the double above triggers
+    // when the pipe drains into a non-flowing sink; await with a floor.
+    await Promise.race([done, new Promise(resolve => setTimeout(resolve, 100))])
+    return { status, body }
+  }
+
+  it('serves a plain wallpaper file inside the collection', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-wallpapers-serve-'))
+    try {
+      const { steamRoot } = await writeSteamTree(root, '431960')
+      const install = join(root, 'library', 'steamapps', 'common', 'wallpaper_engine')
+      await writeWallpaper(
+        join(install, 'projects', 'defaultprojects'), 'Bundled Video',
+        { title: 'Bundled Video', type: 'video', file: 'clip.mp4' }, { 'clip.mp4': 'video-bytes' },
+      )
+      const ctx = new Context()
+      contexts.push(ctx)
+      ctx.provide('webServer', { register: () => () => {} } as never)
+      await ctx.plugin(Wallpapers, {
+        steamLibraryRoots: [steamRoot],
+        appId: '431960',
+        bundledProjectsSubPath: 'projects/defaultprojects',
+      }).await()
+      const wallpapers = ctx.get('wallpapers') as Wallpapers
+      // A space directory is a legal id; the URL percent-encodes it as any
+      // client would.
+      const served = await serve(wallpapers, '/wallpapers/bundled/Bundled%20Video/clip.mp4')
+      expect(served.status).toBe(200)
+      expect(served.body).toBe('video-bytes')
+      // A nested subdirectory stays reachable — the guard must not overreach.
+      await mkdir(join(install, 'projects', 'defaultprojects', 'Bundled Video', 'sub'), { recursive: true })
+      await writeFile(join(install, 'projects', 'defaultprojects', 'Bundled Video', 'sub', 'frame.html'), 'frame')
+      const nested = await serve(wallpapers, '/wallpapers/bundled/Bundled%20Video/sub/frame.html')
+      expect(nested.status).toBe(200)
+      expect(nested.body).toBe('frame')
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects ids and rest segments that climb above the collection root', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'dsh-wallpapers-traverse-'))
+    try {
+      const { steamRoot } = await writeSteamTree(root, '431960')
+      const install = join(root, 'library', 'steamapps', 'common', 'wallpaper_engine')
+      await writeWallpaper(
+        join(install, 'projects', 'defaultprojects'), 'ok',
+        { title: 'ok', type: 'video', file: 'clip.mp4' }, { 'clip.mp4': 'bytes' },
+      )
+      const ctx = new Context()
+      contexts.push(ctx)
+      ctx.provide('webServer', { register: () => () => {} } as never)
+      await ctx.plugin(Wallpapers, {
+        steamLibraryRoots: [steamRoot],
+        appId: '431960',
+        bundledProjectsSubPath: 'projects/defaultprojects',
+      }).await()
+      const wallpapers = ctx.get('wallpapers') as Wallpapers
+      const secret = join(root, 'steam', 'steamapps', 'libraryfolders.vdf')
+      const secretBody = await readFile(secret, 'utf8')
+      const attempts = [
+        // `%2e%2e` id: decodes to `..`, climbing above the root.
+        '/wallpapers/bundled/..%2F..%2F..%2Fsteam%2Fsteamapps%2Flibraryfolders.vdf',
+        // `%5C` backslash chains inside one id segment (Windows drive-root escape).
+        '/wallpapers/bundled/..%5C..%5C..%5C..%5Csteam%5Csteamapps%5Clibraryfolders.vdf',
+        // Plain `..` rest segments after a legal id.
+        '/wallpapers/bundled/ok/..%2F..%2F..%2F..%2F..%2Fsteam%2Fsteamapps%2Flibraryfolders.vdf',
+      ]
+      for (const path of attempts) {
+        const served = await serve(wallpapers, path)
+        expect(served.status).toBe(403)
+        expect(served.body).not.toBe(secretBody)
+      }
+      // Drive-absolute id: replaces the collection root entirely.
+      const drivePath = root.slice(0, root.indexOf('\\') + 1) + 'Windows\\win.ini'
+      const driveServed = await serve(wallpapers, `/wallpapers/bundled/${drivePath.replaceAll('\\', '%5C')}`)
+      expect(driveServed.status).toBe(403)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects an id whose project metadata carries path separators', async () => {
+    // A workshop project.json is untrusted metadata: a `file` of `..\..\x`
+    // must resolve to 403 at serve time, never a file outside the item.
+    const root = await mkdtemp(join(tmpdir(), 'dsh-wallpapers-meta-'))
+    try {
+      const { steamRoot } = await writeSteamTree(root, '431960')
+      const install = join(root, 'library', 'steamapps', 'common', 'wallpaper_engine')
+      await writeWallpaper(
+        join(install, 'projects', 'defaultprojects'), 'escaped',
+        { title: 'escaped', type: 'video', file: '..\\..\\..\\..\\..\\steam\\steamapps\\libraryfolders.vdf' },
+      )
+      const ctx = new Context()
+      contexts.push(ctx)
+      ctx.provide('webServer', { register: () => () => {} } as never)
+      await ctx.plugin(Wallpapers, {
+        steamLibraryRoots: [steamRoot],
+        appId: '431960',
+        bundledProjectsSubPath: 'projects/defaultprojects',
+      }).await()
+      const wallpapers = ctx.get('wallpapers') as Wallpapers
+      const roster = await wallpapers.list()
+      // The roster reports the item (listing is a read), and the summary's
+      // entryUrl carries the metadata's segments verbatim — `..` survives
+      // encodeURIComponent unescaped, so the URL the roster hands out is
+      // itself a traversal attempt built from untrusted metadata.
+      const escaped = roster.wallpapers.find(w => w.id === 'escaped')
+      expect(escaped?.entryUrl).toBeTypeOf('string')
+      expect(escaped!.entryUrl!).toContain('..')
+      // A browser's URL parser collapses the plain `..` segments before the
+      // request leaves the page (out of the /wallpapers prefix entirely — a
+      // 404 fall-off). The adversarial form merges `..%2F` into one segment,
+      // which the parser keeps and decodeURIComponent later expands — what a
+      // raw request can carry untouched.
+      const merged = escaped!.entryUrl!.replaceAll('../', '..%2F').replaceAll('..\\', '..%2F')
+      const served = await serve(wallpapers, merged)
+      expect(served.status).toBe(403)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   })
 })
