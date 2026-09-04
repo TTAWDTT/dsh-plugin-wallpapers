@@ -237,12 +237,29 @@ export class Wallpapers extends Service {
       res.end()
       return
     }
-    const base = resolve(root, id)
+    // The id is a scanned directory name (a Workshop numeric id or a bundled
+    // project folder), so it never needs path semantics. Reject any id that
+    // carries them BEFORE resolving: `..`, separators, and drive-absolute
+    // forms would otherwise climb out of or replace the collection root
+    // (`resolve(root, 'C:\\x')` drops `root` entirely). The `resolve !== join`
+    // arm folds the residual Windows cases (`.`-relative drives, trailing
+    // separators) the explicit checks miss.
+    if (
+      id === '.' || id === '..' || id.includes('/') || id.includes('\\')
+      || resolve(root, id) !== join(root, id)
+    ) {
+      res.writeHead(403)
+      res.end()
+      return
+    }
     // Traversal rejection over the decoded path: a `%2e%2e` leaves the URL
     // parser before this point, so the check runs on the decoded form, with
     // `sep` for Windows backslash targets (the frontend-static precedent).
-    const target = resolve(base, ...segments.slice(3))
-    if (!target.startsWith(base + sep)) {
+    // The guard anchors at the collection root, so no suffix segment can step
+    // above it even when `id` itself is long (the `base` anchor this replaces
+    // could not see an id that had already escaped).
+    const target = resolve(root, id, ...segments.slice(3))
+    if (!target.startsWith(root + sep)) {
       res.writeHead(403)
       res.end()
       return
